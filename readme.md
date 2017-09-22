@@ -1,1 +1,1 @@
-# Some experimental deep-learning code implementations
+# Experimental Deep Learning Implementations
