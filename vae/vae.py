@@ -15,7 +15,10 @@ class VAE:
         self.built = False
         self.sesh = tf.Session()
         self.e = 0
+        
+        # Tracking data
         self.learning_curve = []
+        self.latent_record = {"z":[], "y":[]}
         
         # Building the graph
         self.ops = self.build()
@@ -141,14 +144,19 @@ class VAE:
         e = 0
         while e < epochs:
             epoch_cost = {"kld":[], "rec":[], "cost":[], "validcost":[]}
+            
+            if e == epochs-1: self.latent_record = {"z":[], "y":[]}
+            
             for i in range(batch_num):
-                
                 #Training happens here.
                 batch = X.next()
                 feed_dict = {self.ops["x"]: batch[0], self.ops["dropout_keepprob"]: self._dropout}
-                ops_to_run = [self.ops["reconstructed"], self.ops["cost"],\
+                ops_to_run = [self.ops["reconstructed"], self.ops["z_mean"], self.ops["cost"],\
                               self.ops["kl_loss"], self.ops["rec_loss"], self.ops["train"]]
-                reconstruction, cost, kld, rec, _= self.sesh.run(ops_to_run, feed_dict)
+                reconstruction, z, cost, kld, rec, _= self.sesh.run(ops_to_run, feed_dict)
+                
+                if e == epochs-1: self.latent_record["z"] = self.latent_record["z"] + [_ for _ in z]
+                if e == epochs-1: self.latent_record["y"] = self.latent_record["y"] + [_ for _ in batch[1]]
                 epoch_cost["kld"].append(np.mean(kld))
                 epoch_cost["rec"].append(np.mean(rec))
                 epoch_cost["cost"].append(cost)
