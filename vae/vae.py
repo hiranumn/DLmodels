@@ -2,19 +2,21 @@ import tensorflow as tf
 import numpy as np
 
 class VAE:
-    def __init__(self, dimensions, fn=tf.nn.elu, dropout=1.0):
+    def __init__(self, dimensions, fn=tf.nn.elu, fn2=tf.nn.sigmoid, _lambda=0.0, lr=0.001, losstype="xent", dropout=1.0):
         # Reset all existing tensors
         tf.reset_default_graph()
         
         # Define parameters of the encoder
         self.dimensions = dimensions
         self.fn = fn
-        self._lambda = 0.0
-        self.learning_rate = 0.001
-        self._dropout = 1.0
+        self.output_fn = fn2
+        self._lambda = _lambda
+        self.learning_rate = lr
+        self._dropout = dropout
         self.built = False
         self.sesh = tf.Session()
         self.e = 0
+        self.loss = losstype
         
         # Tracking data
         self.learning_curve = []
@@ -57,7 +59,9 @@ class VAE:
             reconstructed = tf.contrib.slim.fully_connected(dense, self.dimensions[0], activation_fn=tf.nn.sigmoid)
         
         # Defining the loss components.
-        rec_loss = self.crossEntropy(reconstructed, x)
+        if self.loss == "xent": rec_loss = self.crossEntropy(reconstructed, x)
+        elif self.loss == "poisson": rec_loss = self.poisson(reconstructed, x)
+        print rec_loss
         kl_loss = self.kullbackLeibler(z_mean, z_logsigma)
         
         # Regularize weights by l2 if necessary
@@ -91,7 +95,7 @@ class VAE:
                 dense = tf.contrib.slim.fully_connected(dense, dim, activation_fn=self.fn)
                 dense = tf.contrib.slim.dropout(dense, keep_prob=dropout)
                 
-            reconstructed_ = tf.contrib.slim.fully_connected(dense, self.dimensions[0], activation_fn=tf.nn.sigmoid)
+            reconstructed_ = tf.contrib.slim.fully_connected(dense, self.dimensions[0], activation_fn=self.output_fn)
             
         # Exporting out the operaions as dictionary
         return dict(
@@ -123,8 +127,12 @@ class VAE:
     def crossEntropy(self, obs, actual, offset=1e-7):
         with tf.name_scope("BinearyXent"):
             obs_ = tf.clip_by_value(obs, offset, 1 - offset)
-            return -tf.reduce_sum(actual * tf.log(obs_) +
-                                  (1 - actual) * tf.log(1 - obs_), 1)
+            return -tf.reduce_sum(actual * tf.log(obs_) + (1 - actual) * tf.log(1 - obs_), 1)
+        
+    # PoissonLoss
+    def poisson(self, obs, actual):
+        with tf.name_scope("Poisson"):
+            return tf.reduce_sum(tf.nn.log_poisson_loss(actual, obs, name="poisson"), 1)
         
     # KL divergence between Gaussian with mu and log_sigma, q(z|x) vs 0-mean 1-variance Gaussian p(z).
     def kullbackLeibler(self, mu, log_sigma):
