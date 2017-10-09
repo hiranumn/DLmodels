@@ -6,7 +6,7 @@ I decided exclude simple models like convnets or mlps as they do not really show
 This is by far my most favorite deep-learning architecture. I love it because it integrates probabilistic views and variational inference to deep-learning models. VAE is still one of state of the art models for generative modeling.
 
 ## 2. Integrated Gradients (./integrated_gradients)  
-I implemented a module that can wrap around Keras models to explain their predictions.
+I implemented a module that can wrap around Keras models to explain their predictions. Take a look at my original repository (https://github.com/hiranumn/IntegratedGradients) for this for more thorough readmes. 
 
 ## 3. DRAW (./draw)  
 The model combines differentiable gausian filter attention and recurrent variational autoencoders.
