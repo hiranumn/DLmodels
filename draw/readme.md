@@ -3,7 +3,7 @@
 Yet another implementation of DRAW architecture from (https://arxiv.org/pdf/1502.04623.pdf)
 
 ## Explanation
-The model combines following two concepts:
+The model combines the following two concepts:
 - Recurrent variational autoencoder
 - Attention with differentiable guassian filter
 
@@ -14,6 +14,6 @@ Here is the result of training the DRAW architecture for 10 drawing steps on MNI
 ![reconst](figures/reconstructed_18130.png)
 2. Generation from latent distributions.
 ![reconst](figures/generated_4558.png)
-![reconst](figures/generated_4613.png)
+![reconst](figures/generated_17311.png)
 
 Send me questions at hiranumn at cs dot washignton dot edu.
