@@ -1,6 +1,12 @@
 # Deep Learning Implementations
-This is Nao's repository to keep track of the deep-learning models that I implemented.
-Some of them overlap with my other respositories.
+This is my repository to keep track of the deep-learning models that I implemented.  
+I decided exclude simple models like convnets or mlps as they do not really showcase anything sophisticated.
 
 1. Variational autoencoder (./vae)
+This is by far my most favorite deep-learning architecture. I love it because it integrates probabilistic views and variational inference to deep-learning models. VAE is still one of state of the art models for generative modeling.
+
 2. Integrated Gradients (./integrated_gradients)
+I implemented a module that can wrap around Keras models to explain their predictions.
+
+3. DRAW (./draw)
+The model combines differentiable gausian filter attention and recurrent variational autoencoders.
