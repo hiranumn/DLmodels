@@ -10,3 +10,6 @@ I implemented a module that can wrap around Keras models to explain their predic
 
 ## 3. DRAW (./draw)  
 The model combines differentiable gausian filter attention and recurrent variational autoencoders.
+
+## 4. 3D voxel modeling with generative models - VAE vs. GAN (./voxel_modeling)
+Implemented 3D generative models both in VAE and GAN, and comparing the two.
