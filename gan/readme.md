@@ -8,16 +8,16 @@ Dense layers are added to reshape tensors into desired dimentions.
 ## Results
 
 - generated MNSIT samples 
-![1](figures/0.png)  
-![1](figures/1.png)  
-![1](figures/2.png)  
-![1](figures/3.png)  
-![1](figures/4.png)  
-![1](figures/5.png)  
-![1](figures/6.png)  
-![1](figures/7.png)  
-![1](figures/8.png)  
-![1](figures/9.png)  
+![figures/0.png](figures/0.png)  
+![](figures/1.png)  
+![](figures/2.png)  
+![](figures/3.png)  
+![](figures/4.png)  
+![](figures/5.png)  
+![](figures/6.png)  
+![](figures/7.png)  
+![](figures/8.png)  
+![](figures/9.png)  
 
 - learning curves
-![1](figures/learning_curves.png)
+![](figures/learning_curves.png)
