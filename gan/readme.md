@@ -12,7 +12,7 @@ Dense layers are added to reshape tensors into desired dimentions.
 ![](figures/1.png)
 ![](figures/2.png)
 ![](figures/3.png)
-![](figures/4.png)
+![](figures/4.png)  
 ![](figures/5.png)
 ![](figures/6.png)
 ![](figures/7.png)
@@ -20,4 +20,5 @@ Dense layers are added to reshape tensors into desired dimentions.
 ![](figures/9.png)
 
 - learning curves
+
 ![](figures/learning_curves.png)
