@@ -13,3 +13,8 @@ The model combines differentiable gausian filter attention and recurrent variati
 
 ## 4. 3D voxel modeling with generative models - VAE vs. GAN (./voxel_modeling)
 Implemented 3D generative models both in VAE and GAN, and comparing the two. (3d-GAN is based on http://3dgan.csail.mit.edu/papers/3dgan_nips.pdf)
+
+## 5. Simple DC-gan on MNIST (./gan)
+Implemented simple DC-generative adversarial network on MNIST data for debugging purpose.
+
+
