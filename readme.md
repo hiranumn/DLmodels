@@ -17,4 +17,5 @@ Implemented 3D generative models both in VAE and GAN, and comparing the two. (3d
 ## 5. Simple DC-gan on MNIST (./gan)
 Implemented simple DC-generative adversarial network on MNIST data for debugging purpose.
 
-
+## 6. VRNN Variational Recurrent Neural Nets (./vrnn)
+Implemented https://arxiv.org/abs/1506.02216.
