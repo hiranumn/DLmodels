@@ -12,8 +12,8 @@ class BatchFeeder:
 
     def __init__(self, x_, y_, batch_size):
         """check whether X and Y have the matching sample size."""
-        assert len(x_) == len(y_)
-        self.n = len(x_)
+        assert x_.shape[0] == y_.shape[0]
+        self.n = x_.shape[0]
         self.X = x_
         self.y = y_
         self.index = 0

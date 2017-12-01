@@ -7,7 +7,7 @@ import sys
 
 # Adapted from M2 model from Max Welling's paper
 class SSVAERegressor():
-    def __init__(self):
+    def __init__(self, input_dim, vae_dims, reg_dims, latent_dim, prediction_dim=1, verbose=False):
         # Reset all existing tensors
         tf.reset_default_graph()
         
@@ -25,13 +25,14 @@ class SSVAERegressor():
         
         # Define some parameters
         self.e = 0
-        self.verbose = False
+        self.verbose = verbose
         
         # Define dimensionality
-        self.input_dim = 784
-        self.dims = [128, 64]
-        self.latent_dim = 10
-        self.prediction_dim = 1
+        self.input_dim = input_dim
+        self.vaedims = vae_dims
+        self.regressordims = reg_dims
+        self.latent_dim = latent_dim
+        self.prediction_dim = prediction_dim
         self.alpha = 0.1
         
         # Building the graph
@@ -60,10 +61,12 @@ class SSVAERegressor():
         # Building network q(z|x)
         z_mu_labeled, z_log_sigma_labeled = self.encoder(x_in_labeled,
                                                          output_dim=self.latent_dim,
+                                                         dims = self.vaedims,
                                                          _is_train=True,
                                                          scope="encoder")
         z_mu_unlabeled, z_log_sigma_unlabeled = self.encoder(x_in_unlabeled,
                                                              output_dim=self.latent_dim,
+                                                             dims = self.vaedims,
                                                              _is_train=True,
                                                              scope="encoder", 
                                                              reuse=True)
@@ -71,10 +74,12 @@ class SSVAERegressor():
         # Building network q(y|x)
         y_mu_labeled, y_log_sigma_labeled = self.encoder(x_in_labeled,
                                                          output_dim=self.prediction_dim,
+                                                         dims = self.regressordims,
                                                          _is_train=True,
                                                          scope="regressor")
         y_mu_unlabeled, y_log_sigma_unlabeled = self.encoder(x_in_unlabeled,
                                                              output_dim=self.prediction_dim,
+                                                             dims = self.regressordims,
                                                              _is_train=True,
                                                              scope="regressor",
                                                              reuse=True)
@@ -89,10 +94,17 @@ class SSVAERegressor():
         
         # Buiding p(x|z,y) 
         decoder_in_labeled = tf.concat([z_labeled_sampled, y], axis=1)
-        x_out_labeled = self.decoder(decoder_in_labeled, _is_train=True, scope="decoder")
+        x_out_labeled = self.decoder(decoder_in_labeled,
+                                     dims = self.vaedims,
+                                     _is_train=True,
+                                     scope="decoder")
         
         decoder_in_unlabeled = tf.concat([z_unlabeled_sampled, y_unlabeled_sampled], axis=1)
-        x_out_unlabeled = self.decoder(decoder_in_unlabeled, _is_train=True, scope="decoder", reuse=True)
+        x_out_unlabeled = self.decoder(decoder_in_unlabeled,
+                                       dims = self.vaedims,
+                                       _is_train=True,
+                                       scope="decoder",
+                                       reuse=True)
         
         
         #################
@@ -126,7 +138,12 @@ class SSVAERegressor():
         #########################
         x_ = tf.placeholder(tf.float32, shape=[None, self.input_dim], name="x")
         # Building network q(y|x)
-        y_mu_, y_log_sigma_ = self.encoder(x_, output_dim=self.prediction_dim, _is_train=False, scope="regressor", reuse=True)
+        y_mu_, y_log_sigma_ = self.encoder(x_,
+                                           output_dim=self.prediction_dim,
+                                           dims = self.regressordims,
+                                           _is_train=False,
+                                           scope="regressor",
+                                           reuse=True)
             
         return dict(
             x_in_labeled = x_in_labeled,
@@ -152,10 +169,10 @@ class SSVAERegressor():
     ###########
     # Encoder #
     ###########
-    def encoder(self, _input, _is_train, output_dim, _fn=tf.nn.relu, scope="encoder", reuse=None):
+    def encoder(self, _input, _is_train, output_dim, dims, _fn=tf.nn.relu, scope="encoder", reuse=None):
         with tf.variable_scope(scope, reuse=reuse):
             net = _input
-            for dim in self.dims:
+            for dim in dims:
                 net = tf.contrib.slim.fully_connected(net, dim, activation_fn=tf.identity)
                 if self.verbose: print net
                 net = tf.contrib.layers.batch_norm(net, is_training=_is_train)
@@ -169,10 +186,10 @@ class SSVAERegressor():
     ###########
     # Decoder #
     ###########
-    def decoder(self, _input, _is_train, _fn=tf.nn.relu, scope="decoder", reuse=None):
+    def decoder(self, _input, _is_train, dims, _fn=tf.nn.relu, scope="decoder", reuse=None):
         with tf.variable_scope(scope, reuse=reuse):
             net = _input
-            for dim in self.dims[::-1]:
+            for dim in dims[::-1]:
                 net = tf.contrib.slim.fully_connected(net, dim, activation_fn=tf.identity)
                 if self.verbose: print net
                 net = tf.contrib.layers.batch_norm(net, is_training=_is_train)
@@ -257,7 +274,7 @@ class SSVAERegressor():
                 # Use Validation
                 if valid != None:
                     mu, sigma = self.predict(valid[0])
-                    mse = np.mean(np.square(valid[1]-mu[:, 0]))
+                    mse = np.mean(np.square(valid[1]-mu))
                     
                 # Track loss
                 self.loss["loss_l"].append(loss_l)
