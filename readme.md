@@ -19,3 +19,6 @@ Implemented simple DC-generative adversarial network on MNIST data for debugging
 
 ## 6. VRNN Variational Recurrent Neural Nets (./vrnn)
 Implemented https://arxiv.org/abs/1506.02216.
+
+## 7. Semi-Superivised VAE Regressor (./SemiSupervisedRegressionWithVAE)
+I took M2 model from Max Welling's VAE paper and adapted to regression setting
