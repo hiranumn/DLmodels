@@ -25,7 +25,7 @@ class BatchFeeder:
             self.index = 0
             self.randomize()
         ret_x = self.X[self.index:self.index+self.batch_size]
-        ret_y = self.y[self.index:self.index+self.batch_size].reshape((self.batch_size, 1))
+        ret_y = self.y[self.index:self.index+self.batch_size]
         self.index += self.batch_size
         return ret_x, ret_y
     

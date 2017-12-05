@@ -4,6 +4,7 @@ import util
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+import os
 
 # Adapted from M2 model from Max Welling's paper
 class SSVAERegressor():
@@ -14,12 +15,12 @@ class SSVAERegressor():
         # Tracking data
         self.loss = {"loss_l":[],
                     "rec_l":[],
-                    "kld_l":[],
-                    "err_l":[],
+                    "kld_z_l":[],
+                    "logdense_y_l":[],
                     "loss_ul":[],
                     "rec_ul":[],
-                    "kld_ul":[],
-                    "ent_ul":[],
+                    "kld_z_ul":[],
+                    "kld_y_ul":[],
                     "mse":[]}
         self.record = {}
         
@@ -40,6 +41,8 @@ class SSVAERegressor():
         self.sesh = tf.Session()
         self.ops = self.build()
         self.sesh.run(tf.global_variables_initializer())
+        
+        # Recording
         writer = tf.summary.FileWriter('logs', self.sesh.graph)
         
     def build(self):
@@ -121,9 +124,9 @@ class SSVAERegressor():
         # Defining loss for unlabeled data
         with tf.variable_scope("unlabeled_loss"):
             rec_loss_unlabeled = self.crossEntropy(x_out_unlabeled, x_in_unlabeled)
-            kld_unlabeled = self.KLD(z_mu_unlabeled, z_log_sigma_unlabeled)
-            entropy_unlabeled = self.gaussian_entropy(y_mu_unlabeled, y_log_sigma_unlabeled)
-            unlabeled_loss = tf.reduce_mean(rec_loss_unlabeled + kld_unlabeled - entropy_unlabeled)
+            kld_z_unlabeled = self.KLD(z_mu_unlabeled, z_log_sigma_unlabeled)
+            kld_y_unlabeled = self.KLD(y_mu_unlabeled, y_log_sigma_unlabeled) #self.gaussian_entropy(y_mu_unlabeled, y_log_sigma_unlabeled)
+            unlabeled_loss = tf.reduce_mean(rec_loss_unlabeled + kld_z_unlabeled + kld_y_unlabeled)
         
         ################
         # Optimization #
@@ -153,9 +156,9 @@ class SSVAERegressor():
             y_log_sigma_labeled = y_log_sigma_labeled,
             rec_loss_unlabeled = rec_loss_unlabeled,
             rec_loss_labeled = rec_loss_labeled,
-            kld_unlabeled = kld_unlabeled,
+            kld_z_unlabeled = kld_z_unlabeled,
+            kld_y_unlabeled = kld_y_unlabeled,
             kld_labeled = kld_labeled,
-            entropy_unlabeled = entropy_unlabeled,
             density_labeled = density_labeled,
             unlabeled_loss = unlabeled_loss,
             labeled_loss = labeled_loss,
@@ -244,61 +247,66 @@ class SSVAERegressor():
     def train(self, X_labeled, X_unlabeled, epochs, valid=None):
         e = 0
         start_e = self.e
-        while e < epochs:
-            for i in range(X_labeled.batch_num):
-                # Get data
-                x_labeled, y = X_labeled.next()
-                x_unlabeled, _ = X_unlabeled.next()
-                
-                # Training with labeled data
-                feed_dict = {self.ops["x_in_labeled"]: x_labeled,
-                             self.ops["x_in_unlabeled"]: x_unlabeled,
-                             self.ops["y"]: y}
-                ops_to_run = [self.ops["y_log_sigma_labeled"],
-                              self.ops["rec_loss_labeled"],
-                              self.ops["kld_labeled"],
-                              self.ops["density_labeled"],
-                              self.ops["labeled_loss"],
-                              self.ops["labeled_optim"]]
-                ls, rec_l, kld_l, err_l, loss_l, _ = self.sesh.run(ops_to_run, feed_dict)
-                
-                # Training with unlabeled data
-                ops_to_run = [self.ops["y_log_sigma_unlabeled"],
-                              self.ops["rec_loss_unlabeled"],
-                              self.ops["kld_unlabeled"],
-                              self.ops["entropy_unlabeled"],
-                              self.ops["unlabeled_loss"],
-                              self.ops["unlabeled_optim"]]
-                ls, rec_ul, kld_ul, ent_ul, loss_ul, _ = self.sesh.run(ops_to_run, feed_dict)
-                
-                # Use Validation
-                if valid != None:
-                    mu, sigma = self.predict(valid[0])
-                    mse = np.mean(np.square(valid[1]-mu))
-                    
-                # Track loss
-                self.loss["loss_l"].append(loss_l)
-                self.loss["rec_l"].append(np.mean(rec_l))
-                self.loss["kld_l"].append(np.mean(kld_l))
-                self.loss["err_l"].append(np.mean(err_l))
-                self.loss["loss_ul"].append(loss_ul)
-                self.loss["rec_ul"].append(np.mean(rec_ul))
-                self.loss["kld_ul"].append(np.mean(kld_ul))
-                self.loss["ent_ul"].append(np.mean(ent_ul))
-                self.loss["mse"].append(mse)
-                    
-                # Print loss
-                loss = loss_l+loss_ul
-                kld = np.mean(kld_l)+np.mean(kld_ul)
-                rec = np.mean(rec_l)+np.mean(rec_ul)
-                if valid!=None:
-                    sys.stdout.write("\rEpoch: [%2d/%2d] loss: %.2f, kld: %.2f, rec: %.2f, logdensity(labeled): %.2f, entropy(unlabeled): %.2f, mse: %.2f"
-                                     %(self.e, start_e+epochs, loss, kld, rec, np.mean(err_l), np.mean(ent_ul), mse))
-                else:
-                    sys.stdout.write("\rEpoch: [%2d/%2d] loss: %.2f, kld: %.2f, rec: %.2f, logdensity(labeled): %.2f, entropy(unlabeled): %.2f"
-                                     %(self.e, start_e+epochs, loss, kld, rec, np.mean(err_l), np.mean(ent_ul)))
-            self.e+=1
-            e+= 1
+        try:
+            while e < epochs:
+                for i in range(X_labeled.batch_num):
+                    # Get data
+                    x_labeled, y = X_labeled.next()
+                    x_unlabeled, _ = X_unlabeled.next()
+
+                    # Training with labeled data
+                    feed_dict = {self.ops["x_in_labeled"]: x_labeled,
+                                 self.ops["x_in_unlabeled"]: x_unlabeled,
+                                 self.ops["y"]: y}
+                    ops_to_run = [self.ops["y_log_sigma_labeled"],
+                                  self.ops["rec_loss_labeled"],
+                                  self.ops["kld_labeled"],
+                                  self.ops["density_labeled"],
+                                  self.ops["labeled_loss"],
+                                  self.ops["labeled_optim"]]
+                    ls, rec_l, kld_z_l, logdense_y_l, loss_l, _ = self.sesh.run(ops_to_run, feed_dict)
+
+                    # Training with unlabeled data
+                    ops_to_run = [self.ops["y_log_sigma_unlabeled"],
+                                  self.ops["rec_loss_unlabeled"],
+                                  self.ops["kld_z_unlabeled"],
+                                  self.ops["kld_y_unlabeled"],
+                                  self.ops["unlabeled_loss"],
+                                  self.ops["unlabeled_optim"]]
+                    ls, rec_ul, kld_z_ul, kld_y_ul, loss_ul, _ = self.sesh.run(ops_to_run, feed_dict)
+
+                    # Use Validation
+                    if valid != None:
+                        mu, sigma = self.predict(valid[0])
+                        mse = np.mean(np.square(valid[1]-mu))
+
+                    # Track loss
+                    self.loss["loss_l"].append(loss_l)
+                    self.loss["rec_l"].append(np.mean(rec_l))
+                    self.loss["kld_z_l"].append(np.mean(kld_z_l))
+                    self.loss["logdense_y_l"].append(np.mean(logdense_y_l))
+                    self.loss["loss_ul"].append(loss_ul)
+                    self.loss["rec_ul"].append(np.mean(rec_ul))
+                    self.loss["kld_z_ul"].append(np.mean(kld_z_ul))
+                    self.loss["kld_y_ul"].append(np.mean(kld_y_ul))
+                    self.loss["mse"].append(mse)
+
+                    # Print loss
+                    loss = loss_l+loss_ul
+                    kld = np.mean(kld_z_l)+np.mean(kld_z_ul)
+                    rec = np.mean(rec_l)+np.mean(rec_ul)
+                    if valid!=None:
+                        sys.stdout.write("\rEpoch: [%2d/%2d] loss: %.2f, kld: %.2f, rec: %.2f, logdensity(labeled): %.2f, kld(unlabeled): %.2f, mse: %.2f"
+                                         %(self.e, start_e+epochs, loss, kld, rec, np.mean(logdense_y_l), np.mean(kld_y_ul), mse))
+                    else:
+                        sys.stdout.write("\rEpoch: [%2d/%2d] loss: %.2f, kld: %.2f, rec: %.2f, logdensity(labeled): %.2f, kld(unlabeled): %.2f"
+                                         %(self.e, start_e+epochs, loss, kld, rec, np.mean(logdense_y_l), np.mean(kld_y_ul)))
+                self.e+=1
+                e+= 1 
+            self.plotinfo()
+        
+        except(KeyboardInterrupt):
+            self.plotinfo()
             
     def plotinfo(self, filename=""):
         plt.figure(figsize=(12,9))
@@ -324,22 +332,22 @@ class SSVAERegressor():
         plt.title("Unlabeled reconstruction loss")
         
         plt.subplot(335)
-        plt.plot(self.loss["kld_l"])
+        plt.plot(self.loss["kld_z_l"])
         plt.xticks([],[])
-        plt.title("Labeled KLDivergence")
+        plt.title("Labeled Latent KLDivergence")
         
         plt.subplot(336)
-        plt.plot(self.loss["kld_ul"])
+        plt.plot(self.loss["kld_z_ul"])
         plt.xticks([],[])
-        plt.title("Unlabeled KLDivergence")
+        plt.title("Unlabeled Latent KLDivergence")
         
         plt.subplot(337)
-        plt.plot(self.loss["err_l"])
+        plt.plot(self.loss["logdense_y_l"])
         plt.title("Labeled LogDensity")
         
         plt.subplot(338)
-        plt.plot(self.loss["ent_ul"])
-        plt.title("Unlabeled entropy")
+        plt.plot(self.loss["kld_y_ul"])
+        plt.title("Unlabeled y KLD")
         
         plt.subplot(339)
         plt.plot(self.loss["mse"])
@@ -349,6 +357,15 @@ class SSVAERegressor():
             plt.show()
         else:
             plt.savefig(filename)
+            
+    def save(self, folder):
+        saver = tf.train.Saver(tf.all_variables())
+        os.system("mkdir "+folder)
+        saver.save(self.sesh, folder+"/model.ckpt")
+        
+    def load(self, folder):
+        saver = tf.train.Saver(tf.all_variables())
+        saver.restore(self.sesh, folder+"/model.ckpt")
             
     ##############
     # Prediction #
