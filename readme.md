@@ -21,4 +21,4 @@ Implemented simple DC-generative adversarial network on MNIST data for debugging
 Implemented https://arxiv.org/abs/1506.02216.
 
 ## 7. Semi-Superivised VAE Regressor (./SemiSupervisedRegressionWithVAE)
-I took M2 model from Max Welling's VAE paper and adapted to regression setting
+I took M2 model from Max Welling's VAE paper and adapted to regression setting. The model is a modified version of "Semi-Supervised Learning with Deep Generative Models"(https://arxiv.org/abs/1406.5298)
