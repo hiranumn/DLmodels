@@ -352,6 +352,7 @@ class SSVAERegressor():
         plt.subplot(339)
         plt.plot(self.loss["mse"])
         plt.title("Test MSE")
+        plt.ylim(0, 2.0)
         
         if filename == "":
             plt.show()
