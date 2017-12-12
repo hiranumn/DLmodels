@@ -7,7 +7,7 @@ import sys
 import os
 
 # Adapted from M2 model from Max Welling's paper
-class SSVAERegressor():
+class SSVAERegressorX():
     def __init__(self, input_dim, vae_dims, reg_dims, latent_dim, prediction_dim=1, verbose=False):
         # Reset all existing tensors
         tf.reset_default_graph()
@@ -109,6 +109,11 @@ class SSVAERegressor():
                                        scope="decoder",
                                        reuse=True)
         
+        # Building preventor network
+        anti_prediction = self.preventor(z_labeled_sampled,
+                                   _is_train=True,
+                                   scope="preventor",
+                                   reuse=False)
         
         #################
         # Defining loss #
@@ -125,9 +130,12 @@ class SSVAERegressor():
         with tf.variable_scope("unlabeled_loss"):
             rec_loss_unlabeled = self.crossEntropy(x_out_unlabeled, x_in_unlabeled)
             kld_z_unlabeled = self.KLD(z_mu_unlabeled, z_log_sigma_unlabeled)
-            kld_y_unlabeled = self.KLD(y_mu_unlabeled, y_log_sigma_unlabeled) #self.gaussian_entropy(y_mu_unlabeled, y_log_sigma_unlabeled)
+            kld_y_unlabeled = self.KLD(y_mu_unlabeled, y_log_sigma_unlabeled)
             unlabeled_loss = tf.reduce_mean(rec_loss_unlabeled + kld_z_unlabeled + kld_y_unlabeled)
-        
+            
+        with tf.variable_scope("preventor_loss"):
+            p_loss = 0.2*tf.reduce_mean(tf.square(y-anti_prediction))
+            
         ################
         # Optimization #
         ################
@@ -135,6 +143,20 @@ class SSVAERegressor():
         with tf.control_dependencies(update_ops):
             labeled_optim = tf.train.AdamOptimizer().minimize(labeled_loss)
             unlabeled_optim = tf.train.AdamOptimizer().minimize(unlabeled_loss)
+            
+            # Preventor
+            # Define optimizers
+            opt_p = tf.train.AdamOptimizer()
+            p_vars = [v for v in tf.trainable_variables() if "preventor" in v.name]
+            e_vars = [v for v in tf.trainable_variables() if "encoder" in v.name]
+            grads_and_vars = opt_p.compute_gradients(p_loss, p_vars+e_vars)
+            temp = []
+            for grad, tvar in grads_and_vars:
+                if "encoder" in tvar.name:
+                    temp.append((-1*grad, tvar))
+                else:
+                    temp.append((grad, tvar))
+            prevent_optim = opt_p.apply_gradients(temp, name="minimize_p_loss")
             
         #########################
         # Network for later use #
@@ -164,8 +186,10 @@ class SSVAERegressor():
             density_labeled = density_labeled,
             unlabeled_loss = unlabeled_loss,
             labeled_loss = labeled_loss,
+            prevent_loss = p_loss,
             unlabeled_optim = unlabeled_optim,
             labeled_optim = labeled_optim,
+            prevent_optim = prevent_optim,
             x_ = x_,
             y_mu_ = y_mu_,
             y_log_sigma_ = y_log_sigma_
@@ -203,6 +227,16 @@ class SSVAERegressor():
             output = tf.contrib.slim.fully_connected(net, self.input_dim, activation_fn=tf.sigmoid)
             if self.verbose: print output
             return output
+        
+    #############
+    # Predictor #
+    #############
+    def preventor(self, _input, _is_train, _fn=tf.nn.relu, scope="preventor", reuse=None):
+        with tf.variable_scope(scope, reuse=reuse):
+            output = tf.contrib.slim.fully_connected(_input, self.prediction_dim, activation_fn=tf.identity)
+            if self.verbose: print output
+            return output
+        
         
     ###########
     # Sampler # 
@@ -268,6 +302,11 @@ class SSVAERegressor():
                                   self.ops["labeled_loss"],
                                   self.ops["labeled_optim"]]
                     ls, mus_l, rec_l, kld_z_l, logdense_y_l, loss_l, _ = self.sesh.run(ops_to_run, feed_dict)
+                    
+                    # Run a preventor net
+                    ops_to_run = [self.ops["prevent_loss"],
+                                  self.ops["prevent_optim"]]
+                    p_loss, _ = self.sesh.run(ops_to_run, feed_dict)
 
                     # Training with unlabeled data
                     ops_to_run = [self.ops["y_log_sigma_unlabeled"],
@@ -283,7 +322,7 @@ class SSVAERegressor():
                     if valid != None:
                         mu, sigma = self.predict(valid[0])
                         mse = np.mean(np.square(valid[1]-mu))
-                        
+                    
                     self.record["mus"].append(mus_ul)
                     self.record["ys"].append(y)
 
